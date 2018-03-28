@@ -1,3 +1,11 @@
+/* CanSat Flight Software (FSW) Alpha (Testing Version) 0.2
+   Author: Michael Greer, 2018
+
+   Alpha 0.2: Implements GPS, INA219, BNO055, BMP280 with the Teensy 3.5.
+   - Includes basic data reading and display functions
+   - Basic state switching (Non-flight states)
+*/
+
 #include <Wire.h> //I2C Library
 #include <Adafruit_INA219.h> //INA219 lib
 #include <Adafruit_Sensor.h> //Unified sensor lib
@@ -8,9 +16,9 @@
 
 TinyGPS gps;
 
-#define DISTIME 2000
+#define DISTIME 0
 #define PLOTRATE 10 //time
-#define GPS_timeout 300
+#define GPS_timeout 100
 #define gpsPort Serial1
 // turn on GPRMC and GGA
 #define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
@@ -92,16 +100,18 @@ void setup(void)
   }
 
   swState = DISPLAY; //set initial software state
- 
+  syncGPS();
 }
 
 void loop(void)
 {
   //State check:
   stateCheck();
-  syncGPS();
+
   switch (swState) {
     case DISPLAY:
+      syncGPS();
+      readGPS();
       bmpDisplay();
       inaDisplay();
       bnoDisplay();
@@ -130,22 +140,21 @@ void loop(void)
 
 void syncGPS()
 {
-  if (gpsPort.available())
-  {
-    readGPS();
-  }
+  while (!gpsPort.available()) {}
 }
 
 void readGPS()
 {
+  Serial.println("Raw GPS Data: ");
   for (unsigned long start = millis(); millis() - start < GPS_timeout;) {
-      while (gpsPort.available()) {
-        char c = gpsPort.read();
-        Serial.write(c); // uncomment this line if you want to see the GPS data flowing
-        if (gps.encode(c)) // Did a new valid sentence come in?
-          newData = true;
-      }
+    while (gpsPort.available()) {
+      char c = gpsPort.read();
+      Serial.write(c); // uncomment this line if you want to see the GPS data flowing
+      if (gps.encode(c)) // Did a new valid sentence come in?
+        newData = true;
     }
+  }
+  Serial.println();
 }
 
 void stateCheck()
@@ -200,11 +209,11 @@ void stateCheck()
       Serial.println("\nReturning to program in 10 seconds...\n");
       delay(10000);
     }
-//    else
-//    {
-//      Serial.println("\nInvalid Entry. Please input a State name\n");
-//      delay(2000);
-//    }
+    //    else
+    //    {
+    //      Serial.println("\nInvalid Entry. Please input a State name\n");
+    //      delay(2000);
+    //    }
   }
 }
 
@@ -214,9 +223,9 @@ void accelPlot()
 {
   imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
   /* Display the floating point data */
-  Serial.print(accel.x());Serial.print(" ");
-  Serial.print(accel.y());Serial.print(" ");
-  Serial.print(accel.z());Serial.println(" ");
+  Serial.print(accel.x()); Serial.print(" ");
+  Serial.print(accel.y()); Serial.print(" ");
+  Serial.print(accel.z()); Serial.println(" ");
 }
 
 void orientPlot()
@@ -226,9 +235,9 @@ void orientPlot()
   bno.getEvent(&event);
 
   //Display the floating point data
-  Serial.print(event.orientation.x, 4);Serial.print(" ");
-  Serial.print(event.orientation.y, 4);Serial.print(" ");
-  Serial.print(event.orientation.z, 4);Serial.println(" ");
+  Serial.print(event.orientation.x, 4); Serial.print(" ");
+  Serial.print(event.orientation.y, 4); Serial.print(" ");
+  Serial.print(event.orientation.z, 4); Serial.println(" ");
 }
 
 void bmpPlot()
@@ -344,7 +353,7 @@ void bnoDisplay()
   Serial.print(" Z: ");
   Serial.print(accel.z());
   Serial.println("");
-
+  Serial.println("");
 
   /* Optional: Display calibration status */
   //displayCalStatus();
