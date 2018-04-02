@@ -42,6 +42,8 @@ enum FSWState {
 enum FSWState swState = kDISPLAY;
 int sTime = DISTIME; //Set initial display rate
 bool newData; //GPS new data check
+unsigned long fix_age; //GPS fix age check
+unsigned long GPSDate;
 
 double localPress = 1024.04; //Local air pressure in hectapascals
 
@@ -51,16 +53,16 @@ Adafruit_BNO055 bno = Adafruit_BNO055(55);
 
 struct DataFrame {
   unsigned short TeamID;
-  unsigned long MET;
+  unsigned long MET; //Currently uses GPS time, which is not correct
   unsigned int PacketCount;
   float bmpAltitude;
   float bmpPressure;
-  float lmTemperature;
+  float lmTemp; //Currently uses bmp temp, which is not correct
   float inaVoltage;
   long GPSTime;
-  double GPSLat;
-  double GPSLong;
-  double GPSAlt;
+  float GPSLat;
+  float GPSLong;
+  float GPSAlt;
   int GPSSats;
   float bnoTiltX;
   float bnoTiltY;
@@ -177,7 +179,13 @@ void readGPS()
       char c = gpsPort.read();
       Serial.write(c); // uncomment this line if you want to see the GPS data flowing
       if (gps.encode(c)) // Did a new valid sentence come in?
+      {
         newData = true;
+        gps.f_get_position(&frame.GPSLat, &frame.GPSLong, &fix_age);
+        frame.GPSAlt = gps.f_altitude();
+        frame.GPSSats = gps.satellites();
+        gps.get_datetime(&GPSDate, &frame.MET, &fix_age);
+      }
     }
   }
   Serial.println();
@@ -297,16 +305,23 @@ void inaPlot()
 
 void bmpDisplay()
 {
+  frame.lmTemp = bmp.readTemperature();
+  frame.bmpPressure = bmp.readPressure();
+  frame.bmpAltitude = bmp.readAltitude(localPress);
+  
   Serial.print("Temperature = ");
-  Serial.print(bmp.readTemperature());
+  Serial.print(frame.lmTemp);
+  //Serial.print(bmp.readTemperature());
   Serial.println(" *C");
 
   Serial.print("Pressure = ");
-  Serial.print(bmp.readPressure());
+  Serial.print(frame.bmpPressure);
+  //Serial.print(bmp.readPressure());
   Serial.println(" Pa");
 
   Serial.print("Approx altitude = ");
-  Serial.print(bmp.readAltitude(localPress)); // this should be adjusted to your local forcase
+  Serial.print(frame.bmpAltitude);
+  //Serial.print(bmp.readAltitude(localPress)); // this should be adjusted to your local forcast
   Serial.println(" m");
 
   Serial.println();
@@ -326,9 +341,12 @@ void inaDisplay()
   power_mW = ina219.getPower_mW();
   loadvoltage = busvoltage + (shuntvoltage / 1000);
 
+  frame.inaVoltage = loadvoltage;
+
   Serial.print("Bus Voltage:   "); Serial.print(busvoltage); Serial.println(" V");
   Serial.print("Shunt Voltage: "); Serial.print(shuntvoltage); Serial.println(" mV");
-  Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
+  //Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
+  Serial.print("Load Voltage:  "); Serial.print(frame.inaVoltage); Serial.println(" V");
   Serial.print("Current:       "); Serial.print(current_mA); Serial.println(" mA");
   Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
   Serial.println("");
@@ -341,14 +359,21 @@ void bnoDisplay()
   sensors_event_t event;
   bno.getEvent(&event);
 
+  frame.bnoTiltX = event.orientation.x;
+  frame.bnoTiltY = event.orientation.y;
+  frame.bnoTiltZ = event.orientation.z;
+
   //Display the floating point data
   Serial.println("IMU Orientation:");
   Serial.print("X: ");
-  Serial.print(event.orientation.x, 4);
+  //Serial.print(event.orientation.x, 4);
+  Serial.print(frame.bnoTiltX, 4);
   Serial.print("\tY: ");
-  Serial.print(event.orientation.y, 4);
+  //Serial.print(event.orientation.y, 4);
+  Serial.print(frame.bnoTiltY, 4);
   Serial.print("\tZ: ");
-  Serial.print(event.orientation.z, 4);
+  //Serial.print(event.orientation.z, 4);
+  Serial.print(frame.bnoTiltZ, 4);
   /* New line for the next sample */
   Serial.println("");
   /*
