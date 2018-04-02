@@ -1,9 +1,11 @@
-/* CanSat Flight Software (FSW) Alpha (Testing Version) 0.2
+/* CanSat Flight Software (FSW) Alpha (Testing Version) 0.3
    Author: Michael Greer, 2018
 
-   Alpha 0.2: Implements GPS, INA219, BNO055, BMP280 with the Teensy 3.5.
+   Alpha 0.3: Implements GPS, INA219, BNO055, BMP280 with the Teensy 3.5. Adds Data Handling
+              capability using data struct.
    - Includes basic data reading and display functions
    - Basic state switching (Non-flight states)
+   - Basic Data Handling; Transmission and Logging
 */
 
 #include <Wire.h> //I2C Library
@@ -23,13 +25,21 @@ TinyGPS gps;
 // turn on GPRMC and GGA
 #define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
 
-#define DISPLAY 1
-#define INAPLOT 2
-#define BMPPLOT 3
-#define ACCELPLOT 4
-#define ORIENTPLOT 5
+enum FSWState {
+  kDISPLAY,
+  kINAPLOT,
+  kBMPPLOT,
+  kACCELPLOT,
+  kORIENTPLOT
+};
+//#define DISPLAY 1
+//#define INAPLOT 2
+//#define BMPPLOT 3
+//#define ACCELPLOT 4
+//#define ORIENTPLOT 5
 
-uint8_t swState; //initialize software state variable
+//uint8_t swState; //initialize software state variable
+enum FSWState swState = kDISPLAY;
 int sTime = DISTIME; //Set initial display rate
 bool newData; //GPS new data check
 
@@ -39,7 +49,23 @@ Adafruit_INA219 ina219; //initialize ina219
 Adafruit_BMP280 bmp; //initialize bmp280
 Adafruit_BNO055 bno = Adafruit_BNO055(55);
 
-
+struct DataFrame {
+  unsigned short TeamID;
+  unsigned long MET;
+  unsigned int PacketCount;
+  float bmpAltitude;
+  float bmpPressure;
+  float lmTemperature;
+  float inaVoltage;
+  long GPSTime;
+  double GPSLat;
+  double GPSLong;
+  double GPSAlt;
+  int GPSSats;
+  float bnoTiltX;
+  float bnoTiltY;
+  float bnoTiltZ;
+} frame;
 
 /****************************************************************/
 /*                        Setup & Loop                          */
@@ -99,7 +125,7 @@ void setup(void)
     bno.setExtCrystalUse(true);
   }
 
-  swState = DISPLAY; //set initial software state
+  //swState = DISPLAY; //set initial software state
   syncGPS();
 }
 
@@ -109,23 +135,23 @@ void loop(void)
   stateCheck();
 
   switch (swState) {
-    case DISPLAY:
+    case kDISPLAY:
       syncGPS();
       readGPS();
       bmpDisplay();
       inaDisplay();
       bnoDisplay();
       break;
-    case INAPLOT:
+    case kINAPLOT:
       inaPlot();
       break;
-    case BMPPLOT:
+    case kBMPPLOT:
       bmpPlot();
       break;
-    case ACCELPLOT:
+    case kACCELPLOT:
       accelPlot();
       break;
-    case ORIENTPLOT:
+    case kORIENTPLOT:
       orientPlot();
       break;
   }
@@ -166,35 +192,35 @@ void stateCheck()
     {
       Serial.println("\nDisplay Mode On\n");
       delay(1000);
-      swState = DISPLAY;
+      swState = kDISPLAY;
       sTime = DISTIME;
     }
     if (input == "INAPLOT")
     {
       Serial.println("\nPower Plot Mode On\n");
       delay(1000);
-      swState = INAPLOT;
+      swState = kINAPLOT;
       sTime = PLOTRATE;
     }
     if (input == "BMPPLOT")
     {
       Serial.println("\nBMP Plot Mode On\n");
       delay(1000);
-      swState = BMPPLOT;
+      swState = kBMPPLOT;
       sTime = PLOTRATE;
     }
     if (input == "ACCELPLOT")
     {
       Serial.println("\nIMU Acceleration Plot Mode On\n");
       delay(1000);
-      swState = ACCELPLOT;
+      swState = kACCELPLOT;
       sTime = PLOTRATE;
     }
     if (input == "ORIENTPLOT")
     {
       Serial.println("\nIMU Orientation Plot Mode On\n");
       delay(1000);
-      swState = ORIENTPLOT;
+      swState = kORIENTPLOT;
       sTime = PLOTRATE;
     }
     if (input == "help" | input == "HELP")
