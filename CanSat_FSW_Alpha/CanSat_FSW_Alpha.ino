@@ -51,7 +51,8 @@ Adafruit_INA219 ina219; //initialize ina219
 Adafruit_BMP280 bmp; //initialize bmp280
 Adafruit_BNO055 bno = Adafruit_BNO055(55);
 
-struct DataFrame {
+//DataFrame to be used by data handling functions. Currently implements required telem fields only
+struct DataFrame { 
   unsigned short TeamID;
   unsigned long MET; //Currently uses GPS time, which is not correct
   unsigned int PacketCount;
