@@ -15,17 +15,19 @@
 #include <Adafruit_BNO055.h> //BNO055 lib
 #include <utility/imumaths.h> //maths for imu?
 #include <TinyGPS.h> //Teensy compatible GPS lib
+#include <FSWCDH_CS.h> //Custom CDH lib
 
 TinyGPS gps;
+FSWCDH_CS cdh;
 
 #define DISTIME 0
 #define PLOTRATE 10 //time
 #define GPS_timeout 100
 #define gpsPort Serial1
 // turn on GPRMC and GGA
-#define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
+#define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28" 
 
-enum FSWState {
+enum FSWState { //The k's make the IDE happier than all caps apparently
   kDISPLAY,
   kINAPLOT,
   kBMPPLOT,
@@ -37,6 +39,19 @@ enum FSWState {
 //#define BMPPLOT 3
 //#define ACCELPLOT 4
 //#define ORIENTPLOT 5
+
+// change this to match your SD shield or module;
+// Arduino Ethernet shield: pin 4
+// Adafruit SD shields and modules: pin 10
+// Sparkfun SD shield: pin 8
+// Teensy audio board: pin 10
+// Teensy 3.5 & 3.6 on-board: BUILTIN_SDCARD
+// Wiz820+SD board: pin 4
+// Teensy 2.0: pin 0
+// Teensy++ 2.0: pin 20
+const int chipSelect = BUILTIN_SDCARD; //SD card chipselect variable
+String fileName = "TestFile.txt"; //SD card file name
+
 
 //uint8_t swState; //initialize software state variable
 enum FSWState swState = kDISPLAY;
@@ -52,23 +67,23 @@ Adafruit_BMP280 bmp; //initialize bmp280
 Adafruit_BNO055 bno = Adafruit_BNO055(55);
 
 //DataFrame to be used by data handling functions. Currently implements required telem fields only
-struct DataFrame { 
-  unsigned short TeamID;
-  unsigned long MET; //Currently uses GPS time, which is not correct
-  unsigned int PacketCount;
-  float bmpAltitude;
-  float bmpPressure;
-  float lmTemp; //Currently uses bmp temp, which is not correct
-  float inaVoltage;
-  long GPSTime;
-  float GPSLat;
-  float GPSLong;
-  float GPSAlt;
-  int GPSSats;
-  float bnoTiltX;
-  float bnoTiltY;
-  float bnoTiltZ;
-} frame;
+//struct DataFrame { 
+//  unsigned short TeamID;
+//  unsigned long MET; //Currently uses GPS time, which is not correct
+//  unsigned int PacketCount;
+//  float bmpAltitude;
+//  float bmpPressure;
+//  float lmTemp; //Currently uses bmp temp, which is not correct
+//  float inaVoltage;
+//  long GPSTime;
+//  float GPSLat;
+//  float GPSLong;
+//  float GPSAlt;
+//  int GPSSats;
+//  float bnoTiltX;
+//  float bnoTiltY;
+//  float bnoTiltZ;
+//} cdh;
 
 /****************************************************************/
 /*                        Setup & Loop                          */
@@ -83,8 +98,12 @@ void setup(void)
     delay(1);
   }
 
+  if (!cdh.initCDH(fileName, chipselect)){ //initialize CDH
+    Serial.println("Problem initializing Communication & Data Handling System");
+    while(1);
+  }
   gpsPort.begin(9600);
-  gpsPort.println(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+  gpsPort.println(PMTK_SET_NMEA_OUTPUT_RMCGGA); //Send GPS setup command
 
   uint32_t currentFrequency;
 
@@ -182,10 +201,10 @@ void readGPS()
       if (gps.encode(c)) // Did a new valid sentence come in?
       {
         newData = true;
-        gps.f_get_position(&frame.GPSLat, &frame.GPSLong, &fix_age);
-        frame.GPSAlt = gps.f_altitude();
-        frame.GPSSats = gps.satellites();
-        gps.get_datetime(&GPSDate, &frame.MET, &fix_age);
+        gps.f_get_position(&cdh.GPSLat, &cdh.GPSLong, &fix_age);
+        cdh.GPSAlt = gps.f_altitude();
+        cdh.GPSSats = gps.satellites();
+        gps.get_datetime(&GPSDate, &cdh.MET, &fix_age);
       }
     }
   }
@@ -306,22 +325,22 @@ void inaPlot()
 
 void bmpDisplay()
 {
-  frame.lmTemp = bmp.readTemperature();
-  frame.bmpPressure = bmp.readPressure();
-  frame.bmpAltitude = bmp.readAltitude(localPress);
+  cdh.lmTemp = bmp.readTemperature();
+  cdh.bmpPressure = bmp.readPressure();
+  cdh.bmpAltitude = bmp.readAltitude(localPress);
   
   Serial.print("Temperature = ");
-  Serial.print(frame.lmTemp);
+  Serial.print(cdh.lmTemp);
   //Serial.print(bmp.readTemperature());
   Serial.println(" *C");
 
   Serial.print("Pressure = ");
-  Serial.print(frame.bmpPressure);
+  Serial.print(cdh.bmpPressure);
   //Serial.print(bmp.readPressure());
   Serial.println(" Pa");
 
   Serial.print("Approx altitude = ");
-  Serial.print(frame.bmpAltitude);
+  Serial.print(cdh.bmpAltitude);
   //Serial.print(bmp.readAltitude(localPress)); // this should be adjusted to your local forcast
   Serial.println(" m");
 
@@ -342,12 +361,12 @@ void inaDisplay()
   power_mW = ina219.getPower_mW();
   loadvoltage = busvoltage + (shuntvoltage / 1000);
 
-  frame.inaVoltage = loadvoltage;
+  cdh.inaVoltage = loadvoltage;
 
   Serial.print("Bus Voltage:   "); Serial.print(busvoltage); Serial.println(" V");
   Serial.print("Shunt Voltage: "); Serial.print(shuntvoltage); Serial.println(" mV");
   //Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
-  Serial.print("Load Voltage:  "); Serial.print(frame.inaVoltage); Serial.println(" V");
+  Serial.print("Load Voltage:  "); Serial.print(cdh.inaVoltage); Serial.println(" V");
   Serial.print("Current:       "); Serial.print(current_mA); Serial.println(" mA");
   Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
   Serial.println("");
@@ -360,21 +379,21 @@ void bnoDisplay()
   sensors_event_t event;
   bno.getEvent(&event);
 
-  frame.bnoTiltX = event.orientation.x;
-  frame.bnoTiltY = event.orientation.y;
-  frame.bnoTiltZ = event.orientation.z;
+  cdh.bnoTiltX = event.orientation.x;
+  cdh.bnoTiltY = event.orientation.y;
+  cdh.bnoTiltZ = event.orientation.z;
 
   //Display the floating point data
   Serial.println("IMU Orientation:");
   Serial.print("X: ");
   //Serial.print(event.orientation.x, 4);
-  Serial.print(frame.bnoTiltX, 4);
+  Serial.print(cdh.bnoTiltX, 4);
   Serial.print("\tY: ");
   //Serial.print(event.orientation.y, 4);
-  Serial.print(frame.bnoTiltY, 4);
+  Serial.print(cdh.bnoTiltY, 4);
   Serial.print("\tZ: ");
   //Serial.print(event.orientation.z, 4);
-  Serial.print(frame.bnoTiltZ, 4);
+  Serial.print(cdh.bnoTiltZ, 4);
   /* New line for the next sample */
   Serial.println("");
   /*
