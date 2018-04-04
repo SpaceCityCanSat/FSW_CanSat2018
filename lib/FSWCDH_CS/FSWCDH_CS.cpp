@@ -4,22 +4,27 @@
  * 
  */
 
-#include <FSWCDH.h>
+#include <FSWCDH_CS.h>
+
+FSWCDH_CS::FSWCDH_CS() //Default ctor
+{}
 
 FSWCDH_CS::FSWCDH_CS(SoftwareSerial *ser) //ctor for SWSerial
 {
-  SSTransceiver = ser;
+  SStransceiver = ser;
 }
 
-FSWCDH_CS::FSWCDH_CS(SoftwareSerial *ser) //ctor for HWSerial
+FSWCDH_CS::FSWCDH_CS(HardwareSerial *ser) //ctor for HWSerial
 {
-  HSTransceiver = ser;
+  HStransceiver = ser;
 }
 
-bool FSWCDH_CS::initCDH(String name, const int chipselect)
+bool FSWCDH_CS::initCDH(const char* name, const int chipselect)
 {
   fileName = name;
-  return SD.begin(chipselect);
+  if (chipselect >= 0){
+	return SD.begin(chipselect);
+  } else { return true;}
 }
 
 void FSWCDH_CS::dataTransmit()
