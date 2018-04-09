@@ -45,3 +45,8 @@ bool FSWCDH_CS::dataLog()
   }
 }
 
+void FSWCDH_CS::updateMET(unsigned long time)
+{
+	MET = time - METStart;
+}
+

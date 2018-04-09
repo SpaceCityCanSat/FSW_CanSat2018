@@ -36,12 +36,14 @@ Main File
 
 ## DisplayCS
 FSW Display Library
-* void bmpDisplay()
-* void inaDisplay()
-* void bnoDisplay()
+* void bmp()
+* void ina()
+* void bno()
+* void met()
 
 ## FSWCDH_CS
 Commmunication & Data Handling (CDH) Library
 * bool initCDH(const char* name, const int chipselect)
 * void dataTransmit()
 * bool dataLog()
+* void updateMET(unsigned long time)

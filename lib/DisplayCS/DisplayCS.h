@@ -12,9 +12,10 @@ class DisplayCS
     DisplayCS(FSWCDH_CS *CDH); //Ctor for interfacing with the CDH system
 
     //Display Functions
-    void bmpDisplay();
-    void inaDisplay();
-    void bnoDisplay();
+    void bmp();
+    void ina();
+    void bno();
+	void met();
     //BNO specific
 //    void displaySensorStatus(void);
 //    void displaySensorDetails(void);

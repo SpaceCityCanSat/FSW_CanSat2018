@@ -1,13 +1,14 @@
-/* CanSat Flight Software (FSW) Alpha (Testing Version) 0.3
+/* CanSat Flight Software (FSW) Alpha (Testing Version) 0.4
    Author: Michael Greer, 2018
 
-   Alpha 0.3: Implements GPS, INA219, BNO055, BMP280 with the Teensy 3.5. Adds Data Handling
-              capability using new CDH class.
+   Alpha 0.4: Implements GPS, INA219, BNO055, BMP280 with the Teensy 3.5. Adds Data Handling
+              capability using new CDH class. Implements timekeeping using onboard RTC.
+   - Uses RTC to log MET in the CDH class.
    - Includes basic data reading and display functions
    - Basic state switching (Non-flight states)
    - Implemented display and CDH classes
       - CDH: Basic Data Handling; Transmission and Logging
-      - Display: Basic sensor display 
+      - Display: Basic sensor display
 */
 
 #include <Wire.h> //I2C Library
@@ -19,6 +20,7 @@
 #include <TinyGPS.h> //Teensy compatible GPS lib
 #include <FSWCDH_CS.h> //Custom CDH lib
 #include <DisplayCS.h> //Custom display lib
+#include <TimeLib.h> //RTC lib
 
 TinyGPS gps;
 FSWCDH_CS cdh;
@@ -29,7 +31,7 @@ DisplayCS disp(&cdh);
 #define GPS_timeout 100
 #define gpsPort Serial1
 // turn on GPRMC and GGA
-#define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28" 
+#define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
 
 enum FSWState { //The k's make the IDE happier than all caps apparently
   kDISPLAY,
@@ -60,17 +62,46 @@ Adafruit_BNO055 bno = Adafruit_BNO055(55);
 /*                        Setup & Loop                          */
 /****************************************************************/
 
+time_t getTeensy3Time() //RTC function
+{
+  return Teensy3Clock.get();
+}
+
+/*  code to process time sync messages from the serial port   */
+#define TIME_HEADER  "T"   // Header tag for serial time sync message
+
+unsigned long processSyncMessage() {
+  unsigned long pctime = 0L;
+  const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013 
+
+  if(Serial.find(TIME_HEADER)) {
+     pctime = Serial.parseInt();
+     return pctime;
+     if( pctime < DEFAULT_TIME) { // check the value is a valid time (greater than Jan 1 2013)
+       pctime = 0L; // return 0 to indicate that the time is not valid
+     }
+  }
+  return pctime;
+}
 
 void setup(void)
 {
+  // set the Time library to use Teensy 3.0's RTC to keep time
+  setSyncProvider(getTeensy3Time);
+
   Serial.begin(115200);
   while (!Serial) {
     // will pause Zero, Leonardo, etc until serial console opens
     delay(1);
   }
-  if (!cdh.initCDH(fileName, chipSelect)){ //initialize CDH
+  if (timeStatus()!= timeSet) {
+    Serial.println("Unable to sync with the RTC");
+  } else {
+    Serial.println("RTC has set the system time");
+  }
+  if (!cdh.initCDH(fileName, chipSelect )) { //initialize CDH
     Serial.println("Problem initializing Communication & Data Handling System");
-    while(1);
+    while (1);
   }
   gpsPort.begin(9600);
   gpsPort.println(PMTK_SET_NMEA_OUTPUT_RMCGGA); //Send GPS setup command
@@ -116,13 +147,20 @@ void setup(void)
 
     bno.setExtCrystalUse(true);
   }
-
-  //swState = DISPLAY; //set initial software state
+  //insert buzzer feedback
+  delay(500);
+  Serial.println("Program setup complete, starting MET");
+  delay(500);
+  cdh.METStart = now();
+  cdh.updateMET(now());
   syncGPS();
+  //log and transmit setup info 
 }
 
 void loop(void)
 {
+  //Time keeping:
+  cdh.updateMET(now());
   //State check:
   stateCheck();
 
@@ -133,9 +171,10 @@ void loop(void)
       readBNO();
       readBMP();
       readINA();
-      disp.bnoDisplay();
-      disp.bmpDisplay();
-      disp.inaDisplay();
+      disp.bno();
+      disp.bmp();
+      disp.ina();
+      disp.met();
       break;
     case kINAPLOT:
       inaPlot();

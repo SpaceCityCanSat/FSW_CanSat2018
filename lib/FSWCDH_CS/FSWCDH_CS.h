@@ -9,6 +9,7 @@
 
 #include <SoftwareSerial.h>
 #include <SD.h>
+#include <TimeLib.h>
 
 
 class FSWCDH_CS
@@ -20,11 +21,13 @@ class FSWCDH_CS
     bool initCDH(const char* name, const int chipselect); //initializes SD card and sets file name
     void dataTransmit(); //Transmission function (not implemented)
     bool dataLog(); //Logging function
+	void updateMET(unsigned long time);
     
     File dataFile; //SD file
     const char* fileName; //SD file name
     SoftwareSerial *SStransceiver; //SW Serial line pointer
     HardwareSerial *HStransceiver; //HW Serial line pointer
+	unsigned long METStart; //MET start reference
 
     //TELEM Data Structure START
     unsigned short TeamID;

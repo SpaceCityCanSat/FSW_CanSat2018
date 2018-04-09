@@ -47,7 +47,7 @@ DisplayCS::DisplayCS(FSWCDH_CS *CDH)
 
 /************************Display Functions**************************/
 
-void DisplayCS::bmpDisplay()
+void DisplayCS::bmp()
 {
   Serial.print("Temperature = ");
   Serial.print(cdh->lmTemp);
@@ -65,7 +65,7 @@ void DisplayCS::bmpDisplay()
   Serial.println();
 }
 
-void DisplayCS::inaDisplay()
+void DisplayCS::ina()
 {
   Serial.print("Load Voltage:  "); Serial.print(cdh->inaVoltage); Serial.println(" V");
   Serial.print("Current:       "); Serial.print(cdh->inaCurrent); Serial.println(" mA");
@@ -74,7 +74,7 @@ void DisplayCS::inaDisplay()
 }
 
 
-void DisplayCS::bnoDisplay()
+void DisplayCS::bno()
 {
   //Display the floating point data
   Serial.println("IMU Orientation:");
@@ -109,6 +109,13 @@ void DisplayCS::bnoDisplay()
 
 
 
+}
+
+void DisplayCS::met()
+{
+	
+	Serial.print("\nCurrent Mission Elapsed Time in seconds: ");
+	Serial.println(cdh->MET);
 }
 
 ////BNO Stuff:
