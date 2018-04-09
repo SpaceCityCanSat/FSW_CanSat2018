@@ -1,6 +1,6 @@
 # FSW_CanSat2018 A0.3 (Alpha - Testing Version)
 Flight Software for Space City CanSat's 2018 Project
-##Alpha Version
+## Alpha Version
 The Alpha version dedicated to the unit and integration testing of the various CanSat modules.
 
 ### Change Notes

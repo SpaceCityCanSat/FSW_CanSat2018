@@ -2,10 +2,12 @@
    Author: Michael Greer, 2018
 
    Alpha 0.3: Implements GPS, INA219, BNO055, BMP280 with the Teensy 3.5. Adds Data Handling
-              capability using data struct.
+              capability using new CDH class.
    - Includes basic data reading and display functions
    - Basic state switching (Non-flight states)
-   - Basic Data Handling; Transmission and Logging
+   - Implemented display and CDH classes
+      - CDH: Basic Data Handling; Transmission and Logging
+      - Display: Basic sensor display 
 */
 
 #include <Wire.h> //I2C Library
@@ -36,27 +38,11 @@ enum FSWState { //The k's make the IDE happier than all caps apparently
   kACCELPLOT,
   kORIENTPLOT
 };
-//#define DISPLAY 1
-//#define INAPLOT 2
-//#define BMPPLOT 3
-//#define ACCELPLOT 4
-//#define ORIENTPLOT 5
 
-// change this to match your SD shield or module;
-// Arduino Ethernet shield: pin 4
-// Adafruit SD shields and modules: pin 10
-// Sparkfun SD shield: pin 8
-// Teensy audio board: pin 10
-// Teensy 3.5 & 3.6 on-board: BUILTIN_SDCARD
-// Wiz820+SD board: pin 4
-// Teensy 2.0: pin 0
-// Teensy++ 2.0: pin 20
 const int chipSelect = -1; //To turn off data logging (debugging)
 //const int chipSelect = BUILTIN_SDCARD; //SD card chipselect variable
 const char* fileName = "TestFile.txt"; //SD card file name
 
-
-//uint8_t swState; //initialize software state variable
 enum FSWState swState = kDISPLAY;
 int sTime = DISTIME; //Set initial display rate
 bool newData; //GPS new data check
@@ -69,24 +55,6 @@ Adafruit_INA219 ina219; //initialize ina219
 Adafruit_BMP280 bmp; //initialize bmp280
 Adafruit_BNO055 bno = Adafruit_BNO055(55);
 
-//DataFrame to be used by data handling functions. Currently implements required telem fields only
-//struct DataFrame { 
-//  unsigned short TeamID;
-//  unsigned long MET; //Currently uses GPS time, which is not correct
-//  unsigned int PacketCount;
-//  float bmpAltitude;
-//  float bmpPressure;
-//  float lmTemp; //Currently uses bmp temp, which is not correct
-//  float inaVoltage;
-//  long GPSTime;
-//  float GPSLat;
-//  float GPSLong;
-//  float GPSAlt;
-//  int GPSSats;
-//  float bnoTiltX;
-//  float bnoTiltY;
-//  float bnoTiltZ;
-//} cdh;
 
 /****************************************************************/
 /*                        Setup & Loop                          */
@@ -168,22 +136,19 @@ void loop(void)
       disp.bnoDisplay();
       disp.bmpDisplay();
       disp.inaDisplay();
-//      bmpDisplay();
-//      inaDisplay();
-//      bnoDisplay();
       break;
-//    case kINAPLOT:
-//      inaPlot();
-//      break;
-//    case kBMPPLOT:
-//      bmpPlot();
-//      break;
-//    case kACCELPLOT:
-//      accelPlot();
-//      break;
-//    case kORIENTPLOT:
-//      orientPlot();
-//      break;
+    case kINAPLOT:
+      inaPlot();
+      break;
+    case kBMPPLOT:
+      bmpPlot();
+      break;
+    case kACCELPLOT:
+      accelPlot();
+      break;
+    case kORIENTPLOT:
+      orientPlot();
+      break;
   }
 
   delay(sTime);
@@ -342,170 +307,53 @@ void stateCheck()
 
 /*************************Plot Functions****************************/
 
-//void accelPlot()
-//{
-//  imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-//  /* Display the floating point data */
-//  Serial.print(accel.x()); Serial.print(" ");
-//  Serial.print(accel.y()); Serial.print(" ");
-//  Serial.print(accel.z()); Serial.println(" ");
-//}
-//
-//void orientPlot()
-//{
-//  //Get a new sensor event
-//  sensors_event_t event;
-//  bno.getEvent(&event);
-//
-//  //Display the floating point data
-//  Serial.print(event.orientation.x, 4); Serial.print(" ");
-//  Serial.print(event.orientation.y, 4); Serial.print(" ");
-//  Serial.print(event.orientation.z, 4); Serial.println(" ");
-//}
-//
-//void bmpPlot()
-//{
-//  //Serial.print(bmp.readTemperature()); Serial.print(" ");
-//  Serial.print(bmp.readPressure()); Serial.println(" ");
-//  //Serial.println(bmp.readAltitude(localPress));
-//}
-//
-//void inaPlot()
-//{
-//  float shuntvoltage = 0;
-//  float busvoltage = 0;
-//  float current_mA = 0;
-//  float loadvoltage = 0;
-//  float power_mW = 0;
-//
-//  shuntvoltage = ina219.getShuntVoltage_mV();
-//  busvoltage = ina219.getBusVoltage_V();
-//  current_mA = ina219.getCurrent_mA();
-//  power_mW = ina219.getPower_mW();
-//  loadvoltage = busvoltage + (shuntvoltage / 1000);
-//
-//  Serial.print(shuntvoltage); Serial.print(" ");
-//  Serial.print(busvoltage); Serial.print(" ");
-//  Serial.print(current_mA); Serial.print(" ");
-//  Serial.println(power_mW);
-//}
-//
-///************************Display Functions**************************/
-//
-//void bmpDisplay()
-//{
-//  cdh.lmTemp = bmp.readTemperature();
-//  cdh.bmpPressure = bmp.readPressure();
-//  cdh.bmpAltitude = bmp.readAltitude(localPress);
-//  
-//  Serial.print("Temperature = ");
-//  Serial.print(cdh.lmTemp);
-//  //Serial.print(bmp.readTemperature());
-//  Serial.println(" *C");
-//
-//  Serial.print("Pressure = ");
-//  Serial.print(cdh.bmpPressure);
-//  //Serial.print(bmp.readPressure());
-//  Serial.println(" Pa");
-//
-//  Serial.print("Approx altitude = ");
-//  Serial.print(cdh.bmpAltitude);
-//  //Serial.print(bmp.readAltitude(localPress)); // this should be adjusted to your local forcast
-//  Serial.println(" m");
-//
-//  Serial.println();
-//}
-//
-//void inaDisplay()
-//{
-//  float shuntvoltage = 0;
-//  float busvoltage = 0;
-//  float current_mA = 0;
-//  float loadvoltage = 0;
-//  float power_mW = 0;
-//
-//  shuntvoltage = ina219.getShuntVoltage_mV();
-//  busvoltage = ina219.getBusVoltage_V();
-//  current_mA = ina219.getCurrent_mA();
-//  power_mW = ina219.getPower_mW();
-//  loadvoltage = busvoltage + (shuntvoltage / 1000);
-//
-//  cdh.inaVoltage = loadvoltage;
-//  cdh.inaCurrent = current_mA;
-//  cdh.inaPower = power_mW;
-//
-//  Serial.print("Bus Voltage:   "); Serial.print(busvoltage); Serial.println(" V");
-//  Serial.print("Shunt Voltage: "); Serial.print(shuntvoltage); Serial.println(" mV");
-//  //Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
-//  Serial.print("Load Voltage:  "); Serial.print(cdh.inaVoltage); Serial.println(" V");
-//  Serial.print("Current:       "); Serial.print(current_mA); Serial.println(" mA");
-//  Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
-//  Serial.println("");
-//}
-//
-//
-//void bnoDisplay()
-//{
-//  //Get a new sensor event
-//  sensors_event_t event;
-//  bno.getEvent(&event);
-//
-//  cdh.bnoTiltX = event.orientation.x;
-//  cdh.bnoTiltY = event.orientation.y;
-//  cdh.bnoTiltZ = event.orientation.z;
-//
-//  //Display the floating point data
-//  Serial.println("IMU Orientation:");
-//  Serial.print("X: ");
-//  //Serial.print(event.orientation.x, 4);
-//  Serial.print(cdh.bnoTiltX, 4);
-//  Serial.print("\tY: ");
-//  //Serial.print(event.orientation.y, 4);
-//  Serial.print(cdh.bnoTiltY, 4);
-//  Serial.print("\tZ: ");
-//  //Serial.print(event.orientation.z, 4);
-//  Serial.print(cdh.bnoTiltZ, 4);
-//  /* New line for the next sample */
-//  Serial.println("");
-//  /*
-//    The key raw data functions are:
-//
-//    getVector (adafruit_vector_type_t vector_type)
-//    getQuat (void)
-//    getTemp (void)
-//    .getVector ( adafruit_vector_type_t vector_type )
-//    The .getVector function accepts a single parameter (vector_type), which indicates what type of 3-axis vector data to return.
-//
-//    The vector_type field can be one of the following values:
-//
-//    VECTOR_MAGNETOMETER (values in uT, micro Teslas)
-//    VECTOR_GYROSCOPE (values in rps, radians per second)
-//    VECTOR_EULER (values in Euler angles or 'degrees', from 0..359)
-//    VECTOR_ACCELEROMETER (values in m/s^2)
-//    VECTOR_LINEARACCEL (values in m/s^2)
-//    VECTOR_GRAVITY (values in m/s^2)
-//  */
-//  imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-//  /* Display the floating point data */
-//  Serial.println("IMU Acceleration:");
-//  Serial.print("X: ");
-//  Serial.print(accel.x());
-//  Serial.print(" Y: ");
-//  Serial.print(accel.y());
-//  Serial.print(" Z: ");
-//  Serial.print(accel.z());
-//  Serial.println("");
-//  Serial.println("");
-//
-//  /* Optional: Display calibration status */
-//  //displayCalStatus();
-//
-//  /* Optional: Display sensor status (debug only) */
-//  //displaySensorStatus();
-//
-//
-//
-//}
+void accelPlot()
+{
+  imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+  /* Display the floating point data */
+  Serial.print(accel.x()); Serial.print(" ");
+  Serial.print(accel.y()); Serial.print(" ");
+  Serial.print(accel.z()); Serial.println(" ");
+}
+
+void orientPlot()
+{
+  //Get a new sensor event
+  sensors_event_t event;
+  bno.getEvent(&event);
+
+  //Display the floating point data
+  Serial.print(event.orientation.x, 4); Serial.print(" ");
+  Serial.print(event.orientation.y, 4); Serial.print(" ");
+  Serial.print(event.orientation.z, 4); Serial.println(" ");
+}
+
+void bmpPlot()
+{
+  //Serial.print(bmp.readTemperature()); Serial.print(" ");
+  Serial.print(bmp.readPressure()); Serial.println(" ");
+  //Serial.println(bmp.readAltitude(localPress));
+}
+
+void inaPlot()
+{
+  float shuntvoltage = 0;
+  float busvoltage = 0;
+  float current_mA = 0;
+  float loadvoltage = 0;
+  float power_mW = 0;
+
+  shuntvoltage = ina219.getShuntVoltage_mV();
+  busvoltage = ina219.getBusVoltage_V();
+  current_mA = ina219.getCurrent_mA();
+  power_mW = ina219.getPower_mW();
+  loadvoltage = busvoltage + (shuntvoltage / 1000);
+
+  Serial.print(shuntvoltage); Serial.print(" ");
+  Serial.print(busvoltage); Serial.print(" ");
+  Serial.print(current_mA); Serial.print(" ");
+  Serial.println(power_mW);
+}
 
 //BNO Stuff:
 
