@@ -99,7 +99,7 @@ void setup(void)
   } else {
     Serial.println("RTC has set the system time");
   }
-  if (!cdh.initCDH(fileName, chipSelect )) { //initialize CDH
+  if (!cdh.data.initCDH(fileName, chipSelect )) { //initialize CDH
     Serial.println("Problem initializing Communication & Data Handling System");
     while (1);
   }
@@ -151,8 +151,8 @@ void setup(void)
   delay(500);
   Serial.println("Program setup complete, starting MET");
   delay(500);
-  cdh.METStart = now();
-  cdh.updateMET(now());
+  cdh.data.METStart = now();
+  cdh.data.updateMET(now());
   syncGPS();
   //log and transmit setup info 
 }
@@ -160,7 +160,7 @@ void setup(void)
 void loop(void)
 {
   //Time keeping:
-  cdh.updateMET(now());
+  cdh.data.updateMET(now());
   //State check:
   stateCheck();
 
@@ -204,9 +204,9 @@ void readBNO()
   sensors_event_t event;
   bno.getEvent(&event);
 
-  cdh.bnoTiltX = event.orientation.x;
-  cdh.bnoTiltY = event.orientation.y;
-  cdh.bnoTiltZ = event.orientation.z;
+  cdh.data.bnoTiltX = event.orientation.x;
+  cdh.data.bnoTiltY = event.orientation.y;
+  cdh.data.bnoTiltZ = event.orientation.z;
 
   /*
     The key raw data functions are:
@@ -228,16 +228,16 @@ void readBNO()
   */
   imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
 
-  cdh.bnoAccelX = accel.x();
-  cdh.bnoAccelY = accel.y();
-  cdh.bnoAccelZ = accel.z();
+  cdh.data_extra.bnoAccelX = accel.x();
+  cdh.data_extra.bnoAccelY = accel.y();
+  cdh.data_extra.bnoAccelZ = accel.z();
 }
 
 void readBMP()
 {
-  cdh.lmTemp = bmp.readTemperature();
-  cdh.bmpPressure = bmp.readPressure();
-  cdh.bmpAltitude = bmp.readAltitude(localPress);
+  cdh.data.lmTemp = bmp.readTemperature();
+  cdh.data.bmpPressure = bmp.readPressure();
+  cdh.data.bmpAltitude = bmp.readAltitude(localPress);
 }
 
 void readINA()
@@ -254,9 +254,9 @@ void readINA()
   power_mW = ina219.getPower_mW();
   loadvoltage = busvoltage + (shuntvoltage / 1000);
 
-  cdh.inaVoltage = loadvoltage;
-  cdh.inaCurrent = current_mA;
-  cdh.inaPower = power_mW;
+  cdh.data.inaVoltage = loadvoltage;
+  cdh.data.inaCurrent = current_mA;
+  cdh.data.inaPower = power_mW;
 }
 
 void syncGPS()
@@ -274,10 +274,10 @@ void readGPS()
       if (gps.encode(c)) // Did a new valid sentence come in?
       {
         newData = true;
-        gps.f_get_position(&cdh.GPSLat, &cdh.GPSLong, &fix_age);
-        cdh.GPSAlt = gps.f_altitude();
-        cdh.GPSSats = gps.satellites();
-        gps.get_datetime(&GPSDate, &cdh.MET, &fix_age);
+        gps.f_get_position(&cdh.data.GPSLat, &cdh.data.GPSLong, &fix_age);
+        cdh.data.GPSAlt = gps.f_altitude();
+        cdh.data.GPSSats = gps.satellites();
+        gps.get_datetime(&GPSDate, &cdh.data.MET, &fix_age);
       }
     }
   }
