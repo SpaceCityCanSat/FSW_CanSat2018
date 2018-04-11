@@ -29,7 +29,7 @@ class FSWCDH_CS
     HardwareSerial *HStransceiver; //HW Serial line pointer
 	unsigned long METStart; //MET start reference
 
-    //TELEM Data Structure START
+    struct{//TELEM Data Structure START
     unsigned short TeamID;
     unsigned long MET; //Currently uses GPS time, which is not correct
     unsigned int PacketCount;
@@ -45,14 +45,17 @@ class FSWCDH_CS
     float bnoTiltX;
     float bnoTiltY;
     float bnoTiltZ;
-    //TELEM Data Structure STOP
+	char* State;
+    } data;//TELEM Data Structure STOP
 
-    //OTHER DATA
+    struct{//OTHER DATA
     float inaCurrent;
     float inaPower;
     float bnoAccelX;
     float bnoAccelY;
     float bnoAccelZ;
+	} data_extra; //could comment out if tight on memory.
+	// Or: Implement some sort of flag that determines if it initializes on compile?
     
 };
 
